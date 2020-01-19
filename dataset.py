@@ -2,7 +2,6 @@ import torch
 
 import numpy as np
 import os
-import nibabel as nib
 import pickle
 import imageio
 import gzip
