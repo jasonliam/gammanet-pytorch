@@ -174,8 +174,7 @@ class GammaNet(nn.Module):
             init.xavier_normal_(fgru_act[i])
             if torch.cuda.is_available():
                 fgru_act[i] = fgru_act[i].cuda()
-            else:
-                fgru_act[i] = fgru_act[i].double()  # CPU mode requires double
+            fgru_act[i] = fgru_act[i].double()
 
         # downsampling activities for skip connections
         down_act = {}
