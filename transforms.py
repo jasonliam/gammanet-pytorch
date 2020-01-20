@@ -3,6 +3,7 @@ from PIL import Image, ImageOps
 import numpy as np
 import torch
 import torch.nn.functional as F
+import skimage
 
 
 class AssertWidthMajor(object):
@@ -77,13 +78,14 @@ class PadToSquare(object):
         return x
 
 
-class Rescale(object):
+class Resize(object):
 
-    def __init__(self, size, interpolation=Image.BICUBIC):
-        self.worker = torchvision.transforms.Resize(size, interpolation)
+    def __init__(self, size, anti_aliasing=True):
+        self.size = size
+        self.anti_aliasing = anti_aliasing
 
     def __call__(self, x):
-        return self.worker(x)
+        return skimage.transform.resize(x, self.size, self.anti_aliasing)
 
 
 class ToTensor(object):
