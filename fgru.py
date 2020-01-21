@@ -46,14 +46,6 @@ class fConvGRUCell(nn.Module):
         self.w = nn.Parameter(torch.empty((hidden_size, 1, 1)))
         self.mu = nn.Parameter(torch.empty((hidden_size, 1, 1)))
 
-        if normtype == 'instancenorm':
-            self.norm = nn.ModuleList(
-                [nn.InstanceNorm2d(hidden_size, eps=1e-03) for i in range(4*timesteps)])
-        else:
-            self.norm = nn.ModuleList(
-                [nn.BatchNorm2d(hidden_size, eps=1e-03) for i in range(4*timesteps)])
-        self.n = nn.Parameter(torch.randn(self.timesteps, 1, 1))
-
         self.params = nn.ParameterDict()
         self.params['w_inh'] = self.w_gate_inh
         self.params['w_exc'] = self.w_gate_exc
@@ -61,7 +53,16 @@ class fConvGRUCell(nn.Module):
         self.params['gamma'] = self.gamma
         self.params['kappa'] = self.kappa
         self.params['omega'] = self.w
-        self.params['eta'] = self.n
+
+        if normtype == 'instancenorm':
+            self.norm = nn.ModuleList(
+                [nn.InstanceNorm2d(hidden_size, eps=1e-03) for i in range(4*timesteps)])
+        elif normtype == 'batchnorm':
+            self.norm = nn.ModuleList(
+                [nn.BatchNorm2d(hidden_size, eps=1e-03) for i in range(4*timesteps)])
+        else:
+            self.n = nn.Parameter(torch.randn(self.timesteps, 1, 1))
+            self.params['eta'] = self.n
 
         init.orthogonal_(self.w_gate_inh)
         init.orthogonal_(self.w_gate_exc)

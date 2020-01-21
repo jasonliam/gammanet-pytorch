@@ -1,9 +1,7 @@
-import torchvision
-from PIL import Image, ImageOps
 import numpy as np
+import skimage.transform
 import torch
 import torch.nn.functional as F
-import skimage.transform
 
 
 class AssertWidthMajor(object):
