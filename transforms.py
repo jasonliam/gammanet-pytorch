@@ -77,13 +77,29 @@ class PadToSquare(object):
 
 
 class Resize(object):
+    """ Resize ndarray image """
 
     def __init__(self, size, anti_aliasing=True):
         self.size = size
         self.anti_aliasing = anti_aliasing
 
     def __call__(self, x):
+        assert isinstance(x, np.ndarray)
         return skimage.transform.resize(x, self.size, self.anti_aliasing)
+
+
+class CenterCrop(object):
+    """ Center crop ndarray image (h,w,...)  """
+
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, x):
+        assert isinstance(x, np.ndarray)
+        h_diff = x.shape[0] - self.size[0]
+        w_diff = x.shape[1] - self.size[1]
+        assert h_diff >= 0 and w_diff >= 0
+        return x[h_diff//2:-(h_diff//2+h_diff % 2), w_diff//2:-(w_diff//2+w_diff % 2)]
 
 
 class ToTensor(object):
