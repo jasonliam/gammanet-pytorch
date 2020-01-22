@@ -13,7 +13,7 @@ import random
 # NOTE: don't transfer data to CUDA in dataset (if we need to, use memory pinning)
 
 
-def convert_acdc_dataset(data_root, load_labels=True, val_ratio=None):
+def convert_acdc_dataset(data_root, out_root, load_labels=True, val_ratio=None):
     """ Convert NII-formatted ACDC dataset to organized pkls """
 
     x_arr = []
@@ -31,6 +31,10 @@ def convert_acdc_dataset(data_root, load_labels=True, val_ratio=None):
         frame_files = [f for f in os.listdir(patient_path)
                        if "frame" in f and "gt" not in f and "slice" not in f]
 
+        patient_path_out = os.path.join(out_root, patient)
+        if not os.path.exists(patient_path_out):
+            os.makedirs(patient_path_out)
+
         # iterate over frames
         for frame_file in frame_files:
 
@@ -40,7 +44,7 @@ def convert_acdc_dataset(data_root, load_labels=True, val_ratio=None):
             for i in range(frame.shape[2]):
                 image_file = frame_file.split(
                     '.')[0] + "_slice{}.pkl".format(i+1)
-                image_path = os.path.join(patient_path, image_file)
+                image_path = os.path.join(patient_path_out, image_file)
                 x_arr_p += [image_path + '\n']
                 pickle.dump(frame[:, :, i], open(image_path, 'wb'))
 
@@ -52,7 +56,7 @@ def convert_acdc_dataset(data_root, load_labels=True, val_ratio=None):
                 for i in range(truth.shape[2]):
                     label_file = truth_file.split(
                         '.')[0] + "_slice{}.pkl".format(i+1)
-                    label_path = os.path.join(patient_path, label_file)
+                    label_path = os.path.join(patient_path_out, label_file)
                     y_arr_p += [label_path + '\n']
                     pickle.dump(truth[:, :, i], open(label_path, 'wb'))
 
@@ -66,19 +70,20 @@ def convert_acdc_dataset(data_root, load_labels=True, val_ratio=None):
         y_train = [f for p in y_arr[:num_train] for f in p]
         x_val = [f for p in x_arr[num_train:] for f in p]
         y_val = [f for p in y_arr[num_train:] for f in p]
-        with open(os.path.join(data_root, "x_train.txt"), 'w') as f:
+        with open(os.path.join(out_root, "x_train.txt"), 'w') as f:
             f.writelines(x_train)
-        with open(os.path.join(data_root, "y_train.txt"), 'w') as f:
+        with open(os.path.join(out_root, "y_train.txt"), 'w') as f:
             f.writelines(y_train)
-        with open(os.path.join(data_root, "x_val.txt"), 'w') as f:
+        with open(os.path.join(out_root, "x_val.txt"), 'w') as f:
             f.writelines(x_val)
-        with open(os.path.join(data_root, "y_val.txt"), 'w') as f:
+        with open(os.path.join(out_root, "y_val.txt"), 'w') as f:
             f.writelines(y_val)
     else:
-        with open(os.path.join(data_root, "x_arr.txt"), 'w') as f:
+        with open(os.path.join(out_root, "x_arr.txt"), 'w') as f:
             f.writelines([f for p in x_arr for f in p])
-        with open(os.path.join(data_root, "y_arr.txt"), 'w') as f:
-            f.writelines([f for p in y_arr for f in p])
+        if load_labels:
+            with open(os.path.join(out_root, "y_arr.txt"), 'w') as f:
+                f.writelines([f for p in y_arr for f in p])
 
 
 def convert_bsds500_dataset(data_root='data', save_root='data_p'):

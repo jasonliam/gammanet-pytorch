@@ -4,23 +4,29 @@ import torch
 import torch.nn.functional as F
 
 
-class AssertWidthMajor(object):
-    """ make sure that input width > height (specifically for BSDS500) """
+# ==================================================
+# Padding and cropping
+# ==================================================
 
-    def __call__(self, x):
-        assert isinstance(x, torch.Tensor)
-        if x.shape[-2] > x.shape[-1]:
-            x = torch.transpose(x, -2, -1)
-        return x
+def pad_base(x, padding, **kwargs):
+    if isinstance(x, np.ndarray):
+        padding = padding.astype(int).tolist()
+        x = np.pad(x, padding, **kwargs)
+    elif isinstance(x, torch.Tensor):
+        padding = tuple(np.flip(padding, axis=0).flatten().astype(int))
+        x = F.pad(x, padding, **kwargs)
+    else:
+        raise NotImplementedError
+    return x
 
 
 class PadTo2Power(object):
     """ 
-    Pad input axes such that it's a multiple of 2^k
+    Pad input axes such that their sizes are multiples of 2^k
     Use to ensure that inputs upsample to original sizes in autoencoder-style networks
     """
 
-    def __init__(self, axes, k, **kwargs):
+    def __init__(self, k, axes=(0, 1), **kwargs):
         self.axes = axes  # axes to pad
         self.k = k  # 2 power to pad to
         self.kwargs = kwargs
@@ -36,23 +42,13 @@ class PadTo2Power(object):
                 continue
             padding[axis] = [diff // 2, diff // 2 + diff % 2]
 
-        if isinstance(x, np.ndarray):
-            padding = padding.astype(int).tolist()
-            x = np.pad(x, padding, **self.kwargs)
-        elif isinstance(x, torch.Tensor):
-            padding = tuple(np.flip(padding, axis=0).flatten().astype(int))
-            x = F.pad(x, padding, **self.kwargs)
-        else:
-            raise NotImplementedError
-
-        return x
+        return pad_base(x, padding, **self.kwargs)
 
 
 class PadToSquare(object):
 
-    def __init__(self, axes, pad_label=False, **kwargs):
+    def __init__(self, axes=(0, 1), **kwargs):
         self.axes = axes      # axes to make square
-        self.pad_label = pad_label
         self.kwargs = kwargs  # pass to np.pad()
 
     def __call__(self, x):
@@ -64,15 +60,81 @@ class PadToSquare(object):
         padding = np.zeros((len(x.shape), 2))
         padding[pad_axis] = [abs(diff) // 2, abs(diff) // 2 + abs(diff) % 2]
 
-        if isinstance(x, np.ndarray):
-            padding = padding.astype(int).tolist()
-            x = np.pad(x, padding, **self.kwargs)
-        elif isinstance(x, torch.Tensor):
-            padding = tuple(np.flip(padding, axis=0).flatten().astype(int))
-            x = F.pad(x, padding, **self.kwargs)
-        else:
-            raise NotImplementedError
+        return pad_base(x, padding, **self.kwargs)
 
+
+class PadToSize(object):
+
+    def __init__(self, size, axes=(0, 1), **kwargs):
+        self.axes = axes
+        self.size = size
+        self.kwargs = kwargs
+
+    def __call__(self, x):
+        h_diff = x.shape[self.axes[0]] - self.size[0]
+        w_diff = x.shape[self.axes[1]] - self.size[1]
+        assert h_diff <= 0 and w_diff <= 0
+        if h_diff == 0 and w_diff == 0:
+            return x
+
+
+class CenterCrop(object):
+    """ Center crop ndarray image (h,w,...)  """
+
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, x):
+        assert isinstance(x, np.ndarray)
+        h_diff = x.shape[0] - self.size[0]
+        w_diff = x.shape[1] - self.size[1]
+        assert h_diff >= 0 and w_diff >= 0
+        if h_diff == 0 and w_diff == 0:
+            return x
+        elif h_diff == 0:
+            return x[:, w_diff//2:-(w_diff//2+w_diff % 2)]
+        elif w_diff == 0:
+            return x[h_diff//2:-(h_diff//2+h_diff % 2), :]
+        else:
+            return x[h_diff//2:-(h_diff//2+h_diff % 2), w_diff//2:-(w_diff//2+w_diff % 2)]
+
+
+class PadOrCenterCrop(object):
+    """ Pad or center crop to given size (h,w,...) """
+
+    def __init__(self, size, **kwargs):
+        self.size = size
+        self.kwargs = kwargs
+
+    def __call__(self, x):
+        assert isinstance(x, np.ndarray)
+        h_diff = x.shape[0] - self.size[0]
+        w_diff = x.shape[1] - self.size[1]
+        if h_diff == 0 and w_diff == 0:
+            return x
+        elif h_diff < 0 and w_diff < 0:  # pad
+            padding = np.zeros((len(x.shape), 2))
+            padding[0] = [abs(h_diff) // 2, abs(h_diff) // 2 + abs(h_diff) % 2]
+            padding[1] = [abs(w_diff) // 2, abs(w_diff) // 2 + abs(w_diff) % 2]
+            return pad_base(x, padding, **self.kwargs)
+        elif h_diff >= 0 and w_diff >= 0:  # crop
+            return CenterCrop(self.size)(x)
+        else:  # pad to square then crop
+            x = PadToSquare((0, 1), **self.kwargs)(x)
+            return CenterCrop(self.size)(x)
+
+
+# ==================================================
+# Misc
+# ==================================================
+
+class AssertWidthMajor(object):
+    """ make sure that input width > height (specifically for BSDS500) """
+
+    def __call__(self, x):
+        assert isinstance(x, torch.Tensor)
+        if x.shape[-2] > x.shape[-1]:
+            x = torch.transpose(x, -2, -1)
         return x
 
 
@@ -88,18 +150,18 @@ class Resize(object):
         return skimage.transform.resize(x, self.size, self.anti_aliasing)
 
 
-class CenterCrop(object):
-    """ Center crop ndarray image (h,w,...)  """
+class ExpandDims(object):
 
-    def __init__(self, size):
-        self.size = size
+    def __init__(self, dim):
+        self.dim = dim
 
     def __call__(self, x):
-        assert isinstance(x, np.ndarray)
-        h_diff = x.shape[0] - self.size[0]
-        w_diff = x.shape[1] - self.size[1]
-        assert h_diff >= 0 and w_diff >= 0
-        return x[h_diff//2:-(h_diff//2+h_diff % 2), w_diff//2:-(w_diff//2+w_diff % 2)]
+        if isinstance(x, np.ndarray):
+            return np.expand_dims(x, self.dim)
+        elif isinstance(x, torch.Tensor):
+            return torch.unsqueeze(x, self.dim)
+        else:
+            raise NotImplementedError
 
 
 class ToTensor(object):
