@@ -1,4 +1,0 @@
-test/IMG_1362.jpeg
-test/IMG_1326.jpeg
-test/IMG_1353.jpeg
-test/IMG_1331.jpeg
