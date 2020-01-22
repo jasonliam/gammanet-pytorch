@@ -173,8 +173,9 @@ class GammaNet(nn.Module):
                                        x.shape[-2] // (2**i), x.shape[-1] // (2**i)))
             init.xavier_normal_(fgru_act[i])
             if torch.cuda.is_available():
-                fgru_act[i] = fgru_act[i].cuda()
-            fgru_act[i] = fgru_act[i].double()
+                fgru_act[i] = fgru_act[i].cuda().float()
+            else:
+                fgru_act[i] = fgru_act[i].double()
 
         # downsampling activities for skip connections
         down_act = {}
