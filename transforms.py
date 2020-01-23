@@ -76,6 +76,10 @@ class PadToSize(object):
         assert h_diff <= 0 and w_diff <= 0
         if h_diff == 0 and w_diff == 0:
             return x
+        padding = np.zeros((len(x.shape), 2))
+        padding[0] = [abs(h_diff) // 2, abs(h_diff) // 2 + abs(h_diff) % 2]
+        padding[1] = [abs(w_diff) // 2, abs(w_diff) // 2 + abs(w_diff) % 2]
+        return pad_base(x, padding, **self.kwargs)
 
 
 class CenterCrop(object):
