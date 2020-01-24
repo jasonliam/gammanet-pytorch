@@ -1,6 +1,6 @@
 # gammanet-pytorch
 
-PyTorch implementation of gamma-net. 
+General-purpose PyTorch implementation of gamma-net. 
 
 ---
 Original paper: 
