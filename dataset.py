@@ -18,7 +18,7 @@ class SimpleDataset(torch.utils.data.Dataset):
     Loads data from disk on-demand if given file lists, else load at init
     """
 
-    def __init__(self, x_file, y_file=None, x_transform=None, y_transform=None):
+    def __init__(self, x_file, y_file=None, x_transform=None, y_transform=None, use_cache=False):
         """
         Parameters
         - x_paths: list of file paths to input images
@@ -32,6 +32,8 @@ class SimpleDataset(torch.utils.data.Dataset):
 
         self.x_transform = x_transform
         self.y_transform = y_transform
+        self.use_cache = use_cache
+        self.cache_dict = {}
 
         # read x file
         if x_file.endswith(".npy"):
@@ -61,6 +63,9 @@ class SimpleDataset(torch.utils.data.Dataset):
         """
         Returns images and optionally labels at index
         """
+        
+        if self.use_cache and index in self.cache_dict:
+            return self.cache_dict[index]
 
         # get x sample
         x = self.x_arr[index]
@@ -88,8 +93,12 @@ class SimpleDataset(torch.utils.data.Dataset):
                     y = np.array(imageio.imread(y))
             if self.y_transform is not None:
                 y = self.y_transform(y)
+            if self.use_cache:
+                self.cache_dict[index] = (x,y)
             return x, y
         else:
+            if self.use_cache:
+                self.cache_dict[index] = x
             return x
 
     def _shuffle(self):
@@ -110,13 +119,4 @@ class SimpleDataset(torch.utils.data.Dataset):
         f = gzip.open(path) if path.endswith(".gz") else open(path, 'rb')
         ret = pickle.load(f)
         assert isinstance(ret, np.ndarray), "Expected numpy.ndarray"
-        return ret
-
-
-class CachedDataset(torch.utils.data.Dataset):
-    """
-    Caches dataset in batches on init and stores cached batches back to disk
-    Reads batched data from disk when called
-    """
-
-    pass
+        return ret            

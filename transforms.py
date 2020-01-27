@@ -1,5 +1,7 @@
 import numpy as np
 import skimage.transform
+import scipy
+import cv2 as cv
 import torch
 import torch.nn.functional as F
 
@@ -126,7 +128,35 @@ class PadOrCenterCrop(object):
         else:  # pad to square then crop
             x = PadToSquare((0, 1), **self.kwargs)(x)
             return CenterCrop(self.size)(x)
+        
+        
+# ==================================================
+# Filering
+# ==================================================  
 
+class GaussianSmooth(object):
+    
+    def __init__(self, size, sigma):
+        assert size % 2 == 1
+        self.size = size
+        x, y = np.mgrid[-size//2 + 1:size//2 + 1, -size//2 + 1:size//2 + 1]
+        g = np.exp(-((x**2 + y**2)/(2.0*sigma**2)))
+        self.kernel = g/g.sum()[None]
+        
+    def __call__(self, x):
+        assert isinstance(x, np.ndarray)
+        return scipy.signal.convolve2d(x, self.kernel, mode='same')
+
+    
+class CLAHE(object):
+    
+    def __init__(self, clipLimit, tileGridSize):
+        self.clahe = cv.createCLAHE(clipLimit=clipLimit, tileGridSize=tileGridSize)
+        
+    def __call__(self, x):
+        assert isinstance(x, np.ndarray)
+        return self.clahe.apply(x.astype(np.uint16))
+    
 
 # ==================================================
 # Misc
@@ -189,3 +219,4 @@ class ToTensor(object):
             x = x.astype(int)
         x = torch.from_numpy(x).contiguous()
         return x
+    
