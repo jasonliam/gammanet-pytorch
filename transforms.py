@@ -23,7 +23,7 @@ def pad_base(x, padding, **kwargs):
 
 
 class PadTo2Power(object):
-    """ 
+    """
     Pad input axes such that their sizes are multiples of 2^k
     Use to ensure that inputs upsample to original sizes in autoencoder-style networks
     """
@@ -128,39 +128,51 @@ class PadOrCenterCrop(object):
         else:  # pad to square then crop
             x = PadToSquare((0, 1), **self.kwargs)(x)
             return CenterCrop(self.size)(x)
-        
-        
+
+
 # ==================================================
 # Filering
-# ==================================================  
+# ==================================================
 
 class GaussianSmooth(object):
-    
+
     def __init__(self, size, sigma):
         assert size % 2 == 1
         self.size = size
         x, y = np.mgrid[-size//2 + 1:size//2 + 1, -size//2 + 1:size//2 + 1]
         g = np.exp(-((x**2 + y**2)/(2.0*sigma**2)))
         self.kernel = g/g.sum()[None]
-        
+
     def __call__(self, x):
         assert isinstance(x, np.ndarray)
         return scipy.signal.convolve2d(x, self.kernel, mode='same')
 
-    
+
 class CLAHE(object):
-    
+
     def __init__(self, clipLimit, tileGridSize):
-        self.clahe = cv.createCLAHE(clipLimit=clipLimit, tileGridSize=tileGridSize)
-        
+        self.clahe = cv.createCLAHE(
+            clipLimit=clipLimit, tileGridSize=tileGridSize)
+
     def __call__(self, x):
         assert isinstance(x, np.ndarray)
         return self.clahe.apply(x.astype(np.uint16))
-    
+
 
 # ==================================================
 # Misc
 # ==================================================
+
+
+class SelectChannel(object):
+    """ Select only one channel of the input, assuming NCHW format """
+
+    def __init__(self, label_id):
+        self.label_id = label_id
+
+    def __call__(self, x):
+        return x[:, self.label_id]
+
 
 class AssertWidthMajor(object):
     """ make sure that input width > height (specifically for BSDS500) """
@@ -219,4 +231,3 @@ class ToTensor(object):
             x = x.astype(int)
         x = torch.from_numpy(x).contiguous()
         return x
-    
