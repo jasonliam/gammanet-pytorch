@@ -10,7 +10,8 @@ import gzip
 import random
 
 
-# NOTE: don't transfer data to CUDA in dataset (if we need to, use memory pinning)
+def convert_scd_dataset(data_root, out_root, load_labels=True, val_ratio=None):
+    pass
 
 
 def convert_acdc_dataset(data_root, out_root, load_labels=True, val_ratio=None):
