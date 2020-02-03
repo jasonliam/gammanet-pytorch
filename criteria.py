@@ -7,7 +7,7 @@ import torch.nn.functional as F
 # batch-wise dice score
 # source: https://discuss.pytorch.org/t/calculating-dice-coefficient/44154
 def dice_coeff(pred, target, smooth = 1.):
-    pred = nn.Sigmoid()(pred)
+#     pred = nn.Sigmoid()(pred)
     num = pred.size(0)
     m1 = pred.view(num, -1).float()  # Flatten
     m2 = target.view(num, -1).float()  # Flatten

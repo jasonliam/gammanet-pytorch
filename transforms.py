@@ -172,6 +172,20 @@ class SelectChannel(object):
 
     def __call__(self, x):
         return x[:, self.label_id]
+    
+    
+class SelectClass(object):
+    
+    def __init__(self, class_id):
+        self.class_id = class_id
+        
+    def __call__(self, x):
+        if isinstance(x, np.ndarray):
+            return (x == self.class_id).astype(int)
+        elif isinstance(x, torch.Tensor):
+            return (x == self.class_id).int()
+        else:
+            raise NotImplementedError
 
 
 class AssertWidthMajor(object):
