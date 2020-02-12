@@ -10,8 +10,28 @@ import gzip
 import random
 
 
-def convert_scd_dataset(data_root, out_root, load_labels=True, val_ratio=None):
-    pass
+def txt2npy(in_file, out_file):
+    """ read a list of filenames of npy files, and combine them into a single npy file """
+    with open(in_file, 'r') as f:
+        fnames = f.readlines()
+    fnames = [fname.strip() for fname in fnames]
+    arr = np.stack([np.load(fname) for fname in fnames], axis=0)
+    np.save(out_file, arr)
+
+
+def npy2txt(in_file, out_path, txt_fname="arr.txt", sample_prefix="data"):
+    """ read a dataset in npy format, and split it to one file for each sample """
+    arr = np.load(in_file)
+    num_length = np.ceil(np.log10(arr.shape[0]+1))
+    if not os.path.exists(out_path):
+        os.makedirs(out_path)
+    fnames = []
+    for i in range(arr.shape[0]):
+        fname = sample_prefix + "_{:0{n}d}.npy".format(i, n=num_length)
+        fnames += [fname + '\n']
+        np.save(os.path.join(out_path, fname), arr[i])
+    with open(np.path.join(out_path, txt_fname), 'w') as f:
+        f.writelines(fnames)
 
 
 def convert_acdc_dataset(data_root, out_root, load_labels=True, val_ratio=None):
