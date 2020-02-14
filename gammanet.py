@@ -57,6 +57,11 @@ class GammaNet(nn.Module):
             'fgru_timesteps': 8,
             'fgru_normtype': 'instancenorm',
             'fgru_channel_sym': True,
+            'fgru_attention_args': {
+                "type": "gala",
+                "filters": 5,
+                "layers": 2
+            },
             'upsample_mode': 'bilinear',
             'upsample_all2all': True,
         }
@@ -87,7 +92,8 @@ class GammaNet(nn.Module):
                                      config['fgru_kernel_size'][i],
                                      config['fgru_timesteps'],
                                      config['fgru_normtype'],
-                                     config['fgru_channel_sym'])
+                                     config['fgru_channel_sym'],
+                                     config['fgru_attention_args'])
             self.fgru_down[str(i)] = fgru_cell
             self.pool[str(i)] = nn.MaxPool2d(kernel_size=2, stride=2)
 
@@ -103,7 +109,8 @@ class GammaNet(nn.Module):
                                             config['fgru_kernel_size'][self.network_height-1],
                                             config['fgru_timesteps'],
                                             config['fgru_normtype'],
-                                            config['fgru_channel_sym'])
+                                            config['fgru_channel_sym'],
+                                            config['fgru_attention_args'])
 
         # upsampling blocks
         self.upsample = nn.ModuleDict()
@@ -160,7 +167,8 @@ class GammaNet(nn.Module):
                                          self.network_height*2-2)-i],
                                      config['fgru_timesteps'],
                                      config['fgru_normtype'],
-                                     config['fgru_channel_sym'])
+                                     config['fgru_channel_sym'],
+                                     config['fgru_attention_args'])
             self.fgru_up[str(i)] = fgru_cell
 
     def forward(self, x):

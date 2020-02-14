@@ -64,10 +64,10 @@ def convert_acdc_dataset(data_root, out_root, load_labels=True, val_ratio=None):
                 patient_path, frame_file)).get_fdata()
             for i in range(frame.shape[2]):
                 image_file = frame_file.split(
-                    '.')[0] + "_slice{}.pkl".format(i+1)
+                    '.')[0] + "_slice{}.npy".format(i+1)
                 image_path = os.path.join(patient_path_out, image_file)
                 x_arr_p += [image_path + '\n']
-                pickle.dump(frame[:, :, i], open(image_path, 'wb'))
+                np.save(image_path, frame[:, :, i])
 
             # save each slice's label to pkl
             if load_labels:
@@ -76,10 +76,10 @@ def convert_acdc_dataset(data_root, out_root, load_labels=True, val_ratio=None):
                     patient_path, truth_file)).get_fdata()
                 for i in range(truth.shape[2]):
                     label_file = truth_file.split(
-                        '.')[0] + "_slice{}.pkl".format(i+1)
+                        '.')[0] + "_slice{}.npy".format(i+1)
                     label_path = os.path.join(patient_path_out, label_file)
                     y_arr_p += [label_path + '\n']
-                    pickle.dump(truth[:, :, i], open(label_path, 'wb'))
+                    np.save(label_path, truth[:, :, i])
 
         x_arr += [x_arr_p]
         if load_labels:
