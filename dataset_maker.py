@@ -35,7 +35,7 @@ def npy2txt(in_file, out_path, txt_fname="arr.txt", sample_prefix="data"):
 
 
 def convert_acdc_dataset(data_root, out_root, load_labels=True, val_ratio=None):
-    """ Convert NII-formatted ACDC dataset to organized pkls """
+    """ Convert NII-formatted ACDC dataset to organized npy """
 
     x_arr = []
     if load_labels:
