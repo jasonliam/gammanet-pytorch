@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 
 # ==================================================
-# Padding and cropping
+# Padding, cropping, resizing
 # ==================================================
 
 def pad_base(x, padding, **kwargs):
@@ -130,9 +130,40 @@ class PadOrCenterCrop(object):
             return CenterCrop(self.size)(x)
 
 
+class DownsampleShortAxis(object):
+    """ Downsample to match shorter axis of the image to the given size """
+
+    def __init__(self, size, **kwargs):
+        self.size = size
+        self.kwargs = kwargs
+
+    def __call__(self, x):
+        # don't do anything if any axis is smaller than size
+        if x.shape[0] >= self.size or x.shape[1] >= self.size:
+            return x
+        ds_ratio = np.min(x.shape) / self.size
+        new_shape = (int(x.shape[0]/ds_ratio), int(x.shape[1]/ds_ratio))
+        return skimage.transform.resize(x, new_shape, self.kwargs)
+
+
+class Resize(object):
+    """ Resize ndarray image """
+
+    def __init__(self, size, anti_aliasing=True):
+        self.size = size
+        self.anti_aliasing = anti_aliasing
+
+    def __call__(self, x):
+        assert isinstance(x, np.ndarray)
+        return skimage.transform.resize(x, self.size, self.anti_aliasing)
+
+
 # ==================================================
 # Filering
 # ==================================================
+
+class Rectify(object):
+    """  """
 
 class GaussianSmooth(object):
 
@@ -172,13 +203,13 @@ class SelectChannel(object):
 
     def __call__(self, x):
         return x[:, self.label_id]
-    
-    
+
+
 class SelectClass(object):
-    
+
     def __init__(self, class_id):
         self.class_id = class_id
-        
+
     def __call__(self, x):
         if isinstance(x, np.ndarray):
             return (x == self.class_id).astype(int)
@@ -196,18 +227,6 @@ class AssertWidthMajor(object):
         if x.shape[-2] > x.shape[-1]:
             x = torch.transpose(x, -2, -1)
         return x
-
-
-class Resize(object):
-    """ Resize ndarray image """
-
-    def __init__(self, size, anti_aliasing=True):
-        self.size = size
-        self.anti_aliasing = anti_aliasing
-
-    def __call__(self, x):
-        assert isinstance(x, np.ndarray)
-        return skimage.transform.resize(x, self.size, self.anti_aliasing)
 
 
 class ExpandDims(object):
