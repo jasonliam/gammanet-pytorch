@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: EXP_CODE
+  namespace: satellite-unicef
+spec:
+  template:
+    spec:
+      nodeSelector:
+        # nautilus.io/region: ucsd # use ucsd nodes only
+        # gpu-type: 2080Ti
+      containers:
+      - name: EXP_CODE
+        imagePullPolicy: Always
+        image: greencodes/torch-jupyter:latest
+        command: ["bash", "/ceph/gammanet/batch_entry.sh", "EXP_CODE"]
+        resources:
+          limits:
+            memory: "96G"
+            nvidia.com/gpu: 1
+            cpu: 32
+          requests:
+            memory: "10G"
+            cpu: 2
+            nvidia.com/gpu: 1
+            # ephemeral-storage: "100Gi"
+        volumeMounts:
+          - name: ceph
+            mountPath: "/ceph" 
+      volumes:
+        - name: ceph
+          persistentVolumeClaim:
+            claimName: satellite-unicef-cephfs
+      restartPolicy: Never
+  backoffLimit: 1
