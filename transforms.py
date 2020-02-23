@@ -340,6 +340,11 @@ class TimeSeriesToTensor(object):
                 x = np.transpose(x, axes=(3, 2, 0, 1))
             else:
                 raise NotImplementedError
+        else:
+            if self.input_format == "HWT":
+                x = np.transpose(x, axes=(2, 0, 1))
+            else:
+                raise NotImplementedError
         x = x.astype(self.out_type)
         x = torch.from_numpy(x).contiguous()
         return x
