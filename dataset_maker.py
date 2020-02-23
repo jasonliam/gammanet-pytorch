@@ -59,7 +59,7 @@ def convert_acdc_dataset(data_root, out_root, load_labels=True, val_ratio=None):
         # iterate over frames
         for frame_file in frame_files:
 
-            # save each slice to pkl
+            # save each slice to npy
             frame = nib.load(os.path.join(
                 patient_path, frame_file)).get_fdata()
             for i in range(frame.shape[2]):
@@ -69,7 +69,7 @@ def convert_acdc_dataset(data_root, out_root, load_labels=True, val_ratio=None):
                 x_arr_p += [image_path + '\n']
                 np.save(image_path, frame[:, :, i])
 
-            # save each slice's label to pkl
+            # save each slice's label to npy
             if load_labels:
                 truth_file = frame_file.split('.')[0] + "_gt.nii.gz"
                 truth = nib.load(os.path.join(
@@ -80,6 +80,105 @@ def convert_acdc_dataset(data_root, out_root, load_labels=True, val_ratio=None):
                     label_path = os.path.join(patient_path_out, label_file)
                     y_arr_p += [label_path + '\n']
                     np.save(label_path, truth[:, :, i])
+
+        x_arr += [x_arr_p]
+        if load_labels:
+            y_arr += [y_arr_p]
+
+    if load_labels and val_ratio is not None:
+        num_train = int((1.0 - val_ratio) * len(x_arr))
+        x_train = [f for p in x_arr[:num_train] for f in p]
+        y_train = [f for p in y_arr[:num_train] for f in p]
+        x_val = [f for p in x_arr[num_train:] for f in p]
+        y_val = [f for p in y_arr[num_train:] for f in p]
+        with open(os.path.join(out_root, "x_train.txt"), 'w') as f:
+            f.writelines(x_train)
+        with open(os.path.join(out_root, "y_train.txt"), 'w') as f:
+            f.writelines(y_train)
+        with open(os.path.join(out_root, "x_val.txt"), 'w') as f:
+            f.writelines(x_val)
+        with open(os.path.join(out_root, "y_val.txt"), 'w') as f:
+            f.writelines(y_val)
+    else:
+        with open(os.path.join(out_root, "x_arr.txt"), 'w') as f:
+            f.writelines([f for p in x_arr for f in p])
+        if load_labels:
+            with open(os.path.join(out_root, "y_arr.txt"), 'w') as f:
+                f.writelines([f for p in y_arr for f in p])
+
+
+def convert_acdc_dataset_timeseries(data_root, out_root, num_frames=4, load_labels=True, val_ratio=None):
+    """ Convert NII-formatted ACDC dataset to organized npy """
+
+    x_arr = []
+    if load_labels:
+        y_arr = []
+
+    patients = [p for p in os.listdir(data_root) if "patient" in p]
+    for patient in patients:
+
+        x_arr_p = []
+        if load_labels:
+            y_arr_p = []
+
+        patient_path_out = os.path.join(out_root, patient)
+        if not os.path.exists(patient_path_out):
+            os.makedirs(patient_path_out)
+
+        patient_path = os.path.join(data_root, patient)
+        patient_x_path = os.path.join(
+            patient_path, "{}_4d.nii.gz".format(patient))
+        x_data = nib.load(patient_x_path).get_fdata()
+
+        with open(os.path.join(patient_path, "Info.cfg"), 'r') as meta_file:
+            metadata = [l.strip().split(' ') for l in meta_file.readlines()]
+        ed_frame = int(metadata[0][1])
+        es_frame = int(metadata[1][1])
+
+        if ed_frame >= es_frame:
+            raise NotImplementedError
+
+        # ED: note that frame order is reversed
+        # save each slice to npy
+        for i in range(x_data.shape[2]):
+            ts_file = "{}_frame{:02d}-{:02d}_slice{:02d}.npy".format(
+                patient, ed_frame+num_frames-1, ed_frame, i+1)
+            ts_path = os.path.join(patient_path_out, ts_file)
+            x_arr_p += [ts_path + '\n']
+            ed_flip_idx = x_data.shape[3]-(ed_frame-1)
+            np.save(ts_path, np.flip(x_data, axis=-1)
+                    [:, :, i, ed_flip_idx-num_frames:ed_flip_idx])
+        # save each slice's label to npy
+        if load_labels:
+            truth_file = "{}_frame{:02d}_gt.nii.gz".format(patient, ed_frame)
+            truth = nib.load(os.path.join(
+                patient_path, truth_file)).get_fdata()
+            for i in range(truth.shape[2]):
+                label_file = truth_file.split(
+                    '.')[0] + "_slice{:02d}.npy".format(i+1)
+                label_path = os.path.join(patient_path_out, label_file)
+                y_arr_p += [label_path + '\n']
+                np.save(label_path, truth[:, :, i])
+
+        # ES
+        # save each slice to npy
+        for i in range(x_data.shape[2]):
+            ts_file = "{}_frame{:02d}-{:02d}_slice{:02d}.npy".format(
+                patient, es_frame-num_frames+1, es_frame, i+1)
+            ts_path = os.path.join(patient_path_out, ts_file)
+            x_arr_p += [ts_path + '\n']
+            np.save(ts_path, x_data[:, :, i, es_frame-num_frames:es_frame])
+        # save each slice's label to npy
+        if load_labels:
+            truth_file = "{}_frame{:02d}_gt.nii.gz".format(patient, es_frame)
+            truth = nib.load(os.path.join(
+                patient_path, truth_file)).get_fdata()
+            for i in range(truth.shape[2]):
+                label_file = truth_file.split(
+                    '.')[0] + "_slice{:02d}.npy".format(i+1)
+                label_path = os.path.join(patient_path_out, label_file)
+                y_arr_p += [label_path + '\n']
+                np.save(label_path, truth[:, :, i])
 
         x_arr += [x_arr_p]
         if load_labels:

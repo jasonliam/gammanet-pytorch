@@ -14,6 +14,7 @@ from fgru import fConvGRUCell
 config entries
 
 - in_channels: input channels
+- input_timeseries
 - return_sequences
 - num_filters (list): number of filters at each layer of the network
 
@@ -25,9 +26,10 @@ config entries
 
 - fgru_hidden_size (list) 
 - fgru_kernel_size (list): one entry for every block (instead of every depth)
-- fgru_timesteps
+- fgru_timesteps: number of timesteps to run on input; ignored if input is timeseries
 - fgru_normtype
 - fgru_channel_sym
+- fgru_attention_args
 
 - upsample_mode
 - upsample_all2all: whether to enable top-down connections during upsampling
@@ -44,7 +46,8 @@ class GammaNet(nn.Module):
     @staticmethod
     def _get_default_config():
         v2_big_working = {
-            'in_channels': 3,
+            'in_channels': 1,
+            'input_timeseries': False,
             'return_sequences': False,
             'num_filters': [24, 28, 36, 48, 64],
             'conv_kernel_size': [3, 3, 3, 3, 3],
@@ -60,7 +63,7 @@ class GammaNet(nn.Module):
             'fgru_attention_args': {
                 "type": "gala",
                 "filters": 5,
-                "layers": 2
+                "layers": 1
             },
             'upsample_mode': 'bilinear',
             'upsample_all2all': True,
@@ -173,6 +176,13 @@ class GammaNet(nn.Module):
 
     def forward(self, x):
 
+        if self.config['input_timeseries']:
+            assert len(x.shape) == 5, "Expected x in (N, T, C, H, W)"
+            num_timesteps = x.shape[1]
+        else:
+            assert len(x.shape) == 4, "Expected x in (N, C, H, W)"
+            num_timesteps = self.config['fgru_timesteps']
+
         # init fgru hidden states
         fgru_act = {}
         for i in range(self.network_height):
@@ -190,9 +200,12 @@ class GammaNet(nn.Module):
 
         # iterate over timesteps
         act_arr = []  # activity per timestep
-        for timestep in range(self.config['fgru_timesteps']):
+        for timestep in range(num_timesteps):
 
-            act = x  # fix forward drive
+            if self.config['input_timeseries']:
+                act = x[:, timestep]
+            else:
+                act = x  # fix forward drive
 
             # downsampling path (excludes bottleneck)
             for i in range(self.network_height-1):

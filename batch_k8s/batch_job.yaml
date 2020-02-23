@@ -20,7 +20,7 @@ spec:
             nvidia.com/gpu: 1
             cpu: 32
           requests:
-            memory: "10G"
+            memory: "5G"
             cpu: 2
             nvidia.com/gpu: 1
             # ephemeral-storage: "100Gi"

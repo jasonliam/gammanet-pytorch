@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 
 # ==================================================
-# Padding, cropping, resizing
+# Padding, cropping
 # ==================================================
 
 def pad_base(x, padding, **kwargs):
@@ -126,46 +126,74 @@ class PadOrCenterCrop(object):
         elif h_diff >= 0 and w_diff >= 0:  # crop
             return CenterCrop(self.size)(x)
         else:  # pad to square then crop
-            x = PadToSquare((0, 1), **self.kwargs)(x)
+            h_pad_size = np.max([x.shape[0], self.size[0]])
+            w_pad_size = np.max([x.shape[1], self.size[1]])
+            x = PadToSize((h_pad_size, w_pad_size), (0, 1), **self.kwargs)(x)
             return CenterCrop(self.size)(x)
 
 
-class DownsampleShortAxis(object):
+# ==================================================
+# Resizing
+# ==================================================
+
+class MultiChannelTransform(object):
+    """ 
+    Base class for wrapping transforms which only support single-channel 
+    - Supports up to 1 channel dimension, assumes HWC format
+    - Implement __init__() and _transform() for child classes
+    """
+
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def __call__(self, x):
+        if len(x.shape) == 2:
+            return self._transform(x)
+        elif len(x.shape) == 3:
+            arr = []
+            for i in range(x.shape[2]):
+                arr += [self._transform(x[:, :, i])]
+            return np.stack(arr, axis=2)
+        else:
+            raise NotImplementedError
+
+    def _transform(self, x):
+        raise NotImplementedError
+
+
+class DownsampleShortAxis(MultiChannelTransform):
     """ Downsample to match shorter axis of the image to the given size """
 
     def __init__(self, size, **kwargs):
         self.size = size
         self.kwargs = kwargs
 
-    def __call__(self, x):
+    def _transform(self, x):
         # don't do anything if any axis is smaller than size
-        if x.shape[0] >= self.size or x.shape[1] >= self.size:
+        if np.min(x.shape) < self.size:
             return x
         ds_ratio = np.min(x.shape) / self.size
         new_shape = (int(x.shape[0]/ds_ratio), int(x.shape[1]/ds_ratio))
-        return skimage.transform.resize(x, new_shape, self.kwargs)
+        return skimage.transform.resize(x, new_shape, **self.kwargs)
 
 
-class Resize(object):
+class Resize(MultiChannelTransform):
     """ Resize ndarray image """
 
-    def __init__(self, size, anti_aliasing=True):
+    def __init__(self, size, **kwargs):
         self.size = size
-        self.anti_aliasing = anti_aliasing
+        self.kwargs = kwargs
 
-    def __call__(self, x):
+    def _transform(self, x):
         assert isinstance(x, np.ndarray)
-        return skimage.transform.resize(x, self.size, self.anti_aliasing)
+        return skimage.transform.resize(x, self.size, **self.kwargs)
 
 
 # ==================================================
-# Filering
+# Filtering
 # ==================================================
 
-class Rectify(object):
-    """  """
-
-class GaussianSmooth(object):
+class GaussianSmooth(MultiChannelTransform):
 
     def __init__(self, size, sigma):
         assert size % 2 == 1
@@ -174,20 +202,42 @@ class GaussianSmooth(object):
         g = np.exp(-((x**2 + y**2)/(2.0*sigma**2)))
         self.kernel = g/g.sum()[None]
 
-    def __call__(self, x):
+    def _transform(self, x):
         assert isinstance(x, np.ndarray)
         return scipy.signal.convolve2d(x, self.kernel, mode='same')
 
 
-class CLAHE(object):
+class CLAHE(MultiChannelTransform):
 
     def __init__(self, clipLimit, tileGridSize):
         self.clahe = cv.createCLAHE(
             clipLimit=clipLimit, tileGridSize=tileGridSize)
 
-    def __call__(self, x):
+    def _transform(self, x):
         assert isinstance(x, np.ndarray)
         return self.clahe.apply(x.astype(np.uint16))
+
+
+# ==================================================
+# Scaling
+# ==================================================
+
+class MinMax(object):
+
+    def __init__(self, axes=(0, 1)):
+        self.axes = axes
+
+    def __call__(self, x):
+        return ((x - x.min(axis=self.axes)) /
+                (x.max(axis=self.axes) - x.min(axis=self.axes)))
+
+
+class ZScore(object):
+    def __init__(self, axes=(0, 1)):
+        self.axes = axes
+
+    def __call__(self, x):
+        return (x - x.mean(axis=self.axes)) / x.std(axis=self.axes)
 
 
 # ==================================================
@@ -196,16 +246,23 @@ class CLAHE(object):
 
 
 class SelectChannel(object):
-    """ Select only one channel of the input, assuming NCHW format """
+    """ Select only one channel of the input """
 
-    def __init__(self, label_id):
+    def __init__(self, label_id, x_format="CHW"):
         self.label_id = label_id
+        self.x_format = x_format
 
     def __call__(self, x):
-        return x[:, self.label_id]
+        if self.x_format == "CHW":
+            return x[self.label_id]
+        elif self.x_format == "HWC":
+            return x[:, :, self.label_id]
+        else:
+            raise NotImplementedError
 
 
 class SelectClass(object):
+    """ Select only one class in a multi-class label """
 
     def __init__(self, class_id):
         self.class_id = class_id
@@ -245,22 +302,44 @@ class ExpandDims(object):
 
 class ToTensor(object):
 
-    def __init__(self, make_channel_first=True, float_out=True, div=True):
-        self.make_channel_first = make_channel_first
-        self.float_out = float_out
-        self.div = div
+    def __init__(self, make_CHW=True, input_format="HW", out_type=float):
+        self.make_CHW = make_CHW
+        self.input_format = input_format
+        self.out_type = out_type
 
     def __call__(self, x):
         assert isinstance(x, np.ndarray), "Expected numpy.ndarray"
-        assert len(x.shape) >= 2, "Only valid for arrays with 2+ dimensions"
-        if len(x.shape) == 2:
-            np.expand_dims(np.array(x), axis=0)
-        elif self.make_channel_first:
-            x = np.transpose(x, axes=tuple(
-                np.roll(np.arange(len(x.shape)), 1)))
-        if self.float_out:
-            x = x.astype(float)/255 if self.div else x.astype(float)
-        else:
-            x = x.astype(int)
+        if self.make_CHW:
+            if self.input_format == "HW":
+                x = np.expand_dims(x, axis=0)
+            elif self.input_format == "HWC":
+                x = np.transpose(x, axes=(2, 0, 1))
+            else:
+                raise NotImplementedError
+        x = x.astype(self.out_type)
+        x = torch.from_numpy(x).contiguous()
+        return x
+
+
+class TimeSeriesToTensor(object):
+
+    def __init__(self, make_TCHW=True, input_format="HWT", out_type=float):
+        self.make_TCHW = make_TCHW
+        self.input_format = input_format
+        self.out_type = out_type
+
+    def __call__(self, x):
+        assert isinstance(x, np.ndarray), "Expected numpy.ndarray"
+        if self.make_TCHW:
+            if self.input_format == "HWT":
+                x = np.transpose(x, axes=(2, 0, 1))
+                np.expand_dims(x, axis=1)
+            elif self.input_format == "THWC":
+                x = np.transpose(x, axes=(0, 3, 1, 2))
+            elif self.input_format == "HWCT":
+                x = np.transpose(x, axes=(3, 2, 0, 1))
+            else:
+                raise NotImplementedError
+        x = x.astype(self.out_type)
         x = torch.from_numpy(x).contiguous()
         return x

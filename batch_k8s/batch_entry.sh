@@ -1,11 +1,12 @@
 #!/bin/bash
 
 # definitions
-CODE_ROOT="/ceph/gammanet"
-NB_SUBDIR="batch"
-DATA_SUBDIR="data"
-RESULTS_SUBDIR="results"
-DATA_FILE="ACDC_split.tar.bz2"
+export CODE_ROOT="/ceph/gammanet"
+export NB_SUBDIR="batch"
+export DATA_SUBDIR="data"
+export RESULTS_SUBDIR="results"
+export LOG_SUBDIR="logs"
+export DATA_FILE="ACDC_split.tar.bz2"
 
 # inputs
 if [ "$#" -lt 1 ]; then
@@ -14,7 +15,7 @@ if [ "$#" -lt 1 ]; then
 fi
 export EXP_CODE="$1"
 if [ "$#" == 2 ]; then
-  DATA_FILE=$2
+  export DATA_FILE=$2
 fi
 
 # init code repo
@@ -58,5 +59,4 @@ rm "${EXP_CODE}.py"
 # package experiment results and save
 tar -czf "$EXP_CODE.tar.gz" "$EXP_CODE/"
 cp "$EXP_CODE.tar.gz" "${CODE_ROOT}/${RESULTS_SUBDIR}/"
-
 
