@@ -333,7 +333,7 @@ class TimeSeriesToTensor(object):
         if self.make_TCHW:
             if self.input_format == "HWT":
                 x = np.transpose(x, axes=(2, 0, 1))
-                x = p.expand_dims(x, axis=1)
+                x = np.expand_dims(x, axis=1)
             elif self.input_format == "THWC":
                 x = np.transpose(x, axes=(0, 3, 1, 2))
             elif self.input_format == "HWCT":
