@@ -13,7 +13,7 @@ spec:
       - name: EXP_CODE
         imagePullPolicy: Always
         image: greencodes/torch-jupyter:latest
-        command: ["bash", "/ceph/gammanet/batch_entry.sh", "EXP_CODE"]
+        command: ["bash", "/ceph/gammanet/batch_entry.sh", "EXP_CODE", "DATA_F"]
         resources:
           limits:
             memory: "96G"
