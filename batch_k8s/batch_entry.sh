@@ -14,7 +14,7 @@ if [ "$#" -lt 1 ]; then
   exit 1
 fi
 export EXP_CODE="$1"
-if [ "$#" == 2 ]; then
+if [ "$#" == 2 -a "$2" != "" ]; then
   export DATA_FILE=$2
 fi
 
