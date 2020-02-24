@@ -57,7 +57,7 @@ class GammaNet(nn.Module):
             'conv_residual': False,
             'fgru_hidden_size': [24, 28, 36, 48, 64],
             'fgru_kernel_size': [9,  7,  5,  3,  1,  1,  1,  1,  1],
-            'fgru_timesteps': 8,
+            'fgru_timesteps': 2,
             'fgru_normtype': 'instancenorm',
             'fgru_channel_sym': True,
             'fgru_attention_args': {
