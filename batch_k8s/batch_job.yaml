@@ -16,12 +16,12 @@ spec:
         command: ["bash", "/ceph/gammanet/batch_entry.sh", "EXP_CODE", "DATA_F"]
         resources:
           limits:
-            memory: "96G"
+            memory: "6G"
             nvidia.com/gpu: 1
-            cpu: 32
+            cpu: 8
           requests:
-            memory: "5G"
-            cpu: 2
+            memory: "3G"
+            cpu: 1
             nvidia.com/gpu: 1
             # ephemeral-storage: "100Gi"
         volumeMounts:

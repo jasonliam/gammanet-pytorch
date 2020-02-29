@@ -6,17 +6,18 @@ export NB_SUBDIR="batch"
 export DATA_SUBDIR="data"
 export RESULTS_SUBDIR="results"
 export LOG_SUBDIR="logs"
-export DATA_FILE="ACDC_split.tar.bz2"
+export DATA_FILES="ACDC_split.tar.bz2;sunnybrook_180.tar.bz2"
 
 # inputs
 if [ "$#" -lt 1 ]; then
-  echo "Usage: $0 <experiment code> [data file path]" >&2
+  echo "Usage: $0 <experiment code> [data file path;]" >&2
   exit 1
 fi
 export EXP_CODE="$1"
 if [ "$#" == 2 -a "$2" != "" ]; then
-  export DATA_FILE=$2
+  export DATA_FILES=$2
 fi
+IFS=';' read -ra DATA_FARR <<< "$DATA_FILES"
 
 # init code repo
 cd /root
@@ -37,16 +38,17 @@ if [ ! -f "${CODE_ROOT}/${NB_SUBDIR}/${EXP_CODE}.ipynb" ]; then
   exit 1
 fi
 
-# check data file 
-if [ ! -f "${CODE_ROOT}/${DATA_SUBDIR}/${DATA_FILE}" ]; then
-  echo "Data file does not exist" >&2
-  exit 1
-fi
-
-# copy and expand training data
-cp "${CODE_ROOT}/${DATA_SUBDIR}/${DATA_FILE}" .
-apt-get update && apt-get install pbzip2
-tar -Ipbzip2 -xf "${DATA_FILE}"
+for DATA_FILE in ${DATA_FARR[@]}
+do
+  # check data file 
+  if [ ! -f "${CODE_ROOT}/${DATA_SUBDIR}/${DATA_FILE}" ]; then
+    echo "Data file does not exist" >&2
+    exit 1
+  fi
+  # copy and expand training data
+  cp "${CODE_ROOT}/${DATA_SUBDIR}/${DATA_FILE}" .
+  tar -xjf "${DATA_FILE}"
+done 
 
 # copy notebook for batch job
 cp "${CODE_ROOT}/${NB_SUBDIR}/${EXP_CODE}.ipynb" .
