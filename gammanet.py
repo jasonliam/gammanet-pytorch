@@ -56,7 +56,7 @@ class GammaNet(nn.Module):
             'conv_dropout_p': 0.2,  # 0.2
             'conv_residual': False,
             'fgru_hidden_size': [24, 28, 36, 48, 64],
-            'fgru_kernel_size': [9,  7,  5,  3,  1,  1,  1,  1,  1],
+            'fgru_kernel_size': [9, 7, 5, 3, 1, 1, 1, 1, 1],
             'fgru_timesteps': 2,
             'fgru_normtype': 'instancenorm',
             'fgru_channel_sym': True,
@@ -82,7 +82,7 @@ class GammaNet(nn.Module):
         self.fgru_down = nn.ModuleDict()
         self.pool = nn.ModuleDict()
         for i in range(self.network_height - 1):
-            in_c = config['in_channels'] if i == 0 else config['num_filters'][i-1]
+            in_c = config['in_channels'] if i == 0 else config['num_filters'][i - 1]
             blk = self._conv_block(in_c, config['num_filters'][i],
                                    kernel_size=config['conv_kernel_size'][i],
                                    blocksize=config['conv_blocksize'][i],
@@ -109,7 +109,7 @@ class GammaNet(nn.Module):
                                                 dropout_p=config['conv_dropout_p'])
         self.fgru_bottleneck = fConvGRUCell(config['num_filters'][-1],
                                             config['fgru_hidden_size'][-1],
-                                            config['fgru_kernel_size'][self.network_height-1],
+                                            config['fgru_kernel_size'][self.network_height - 1],
                                             config['fgru_timesteps'],
                                             config['fgru_normtype'],
                                             config['fgru_channel_sym'],
@@ -127,7 +127,7 @@ class GammaNet(nn.Module):
                 if config['upsample_all2all']:
                     raise NotImplementedError(
                         'Transpose mode does not support all-to-all')
-                self.upsample[str(i)] = nn.ConvTranspose2d(config['num_filters'][i+1],
+                self.upsample[str(i)] = nn.ConvTranspose2d(config['num_filters'][i + 1],
                                                            config['num_filters'][i],
                                                            kernel_size=2,
                                                            stride=2)
@@ -135,9 +135,9 @@ class GammaNet(nn.Module):
                 # ups_out_dims = tuple(
                 #     np.array(config['in_dims'][:2]) // (2 ** i))
                 if config['upsample_all2all']:  # will concat fgru act from all layers below
-                    ups_in_channels = [config['num_filters'][i+1]]
-                    for j in range(i+1, self.network_height):
-                        ups = nn.Upsample(scale_factor=2**(j-i),
+                    ups_in_channels = [config['num_filters'][i + 1]]
+                    for j in range(i + 1, self.network_height):
+                        ups = nn.Upsample(scale_factor=2 ** (j - i),
                                           mode=config['upsample_mode'],
                                           align_corners=False)
                         self.upsample["{}-{}".format(j, i)] = ups
@@ -147,8 +147,8 @@ class GammaNet(nn.Module):
                     ups = nn.Upsample(scale_factor=2,
                                       mode=config['upsample_mode'],
                                       align_corners=False)
-                    self.upsample["{}-{}".format(i+1, i)] = ups
-                    ups_in_channels = config['num_filters'][i+1]
+                    self.upsample["{}-{}".format(i + 1, i)] = ups
+                    ups_in_channels = config['num_filters'][i + 1]
                 self.ups_conv[str(i)] = nn.Conv2d(ups_in_channels,
                                                   config['num_filters'][i],
                                                   kernel_size=1)
@@ -167,7 +167,7 @@ class GammaNet(nn.Module):
             fgru_cell = fConvGRUCell(config['num_filters'][i],
                                      config['fgru_hidden_size'][i],
                                      config['fgru_kernel_size'][(
-                                         self.network_height*2-2)-i],
+                                                                        self.network_height * 2 - 2) - i],
                                      config['fgru_timesteps'],
                                      config['fgru_normtype'],
                                      config['fgru_channel_sym'],
@@ -188,7 +188,7 @@ class GammaNet(nn.Module):
         for i in range(self.network_height):
             # NOTE: init h2 as (batch, channel, height, width)
             fgru_act[i] = torch.empty((x.shape[0], self.config['num_filters'][i],
-                                       x.shape[-2] // (2**i), x.shape[-1] // (2**i)))
+                                       x.shape[-2] // (2 ** i), x.shape[-1] // (2 ** i)))
             init.xavier_normal_(fgru_act[i])
             if torch.cuda.is_available():
                 fgru_act[i] = fgru_act[i].cuda().float()
@@ -208,8 +208,7 @@ class GammaNet(nn.Module):
                 act = x  # fix forward drive
 
             # downsampling path (excludes bottleneck)
-            for i in range(self.network_height-1):
-
+            for i in range(self.network_height - 1):
                 # conv block
                 act = self.conv_down[str(i)](act)
                 down_act[i] = act  # skip
@@ -230,15 +229,15 @@ class GammaNet(nn.Module):
             act += fgru_act[depth]
 
             # upsampling path
-            for i in range(self.network_height-2, -1, -1):
+            for i in range(self.network_height - 2, -1, -1):
 
                 # upsampling
                 if self.config['upsample_mode'] == 'transpose':
-                    act = self.upsample["{}-{}".format(i+1, i)](act)
+                    act = self.upsample["{}-{}".format(i + 1, i)](act)
                 else:
                     if self.config['upsample_all2all']:
-                        act = [self.upsample["{}-{}".format(i+1, i)](act)]
-                        for j in range(self.network_height-1, i, -1):
+                        act = [self.upsample["{}-{}".format(i + 1, i)](act)]
+                        for j in range(self.network_height - 1, i, -1):
                             ups = self.upsample["{}-{}".format(j, i)]
                             act_extra = ups(fgru_act[j])
                             act += [act_extra]
@@ -275,13 +274,69 @@ class GammaNet(nn.Module):
         for i in range(blocksize):
             block["{}_conv{}".format(name, i)] = \
                 nn.Conv2d(in_channels if i == 0 else out_channels, out_channels,
-                          kernel_size, padding=kernel_size//2)
+                          kernel_size, padding=kernel_size // 2)
             if normtype == 'batchnorm':
                 block["{}_bn{}".format(name, i)] = nn.BatchNorm2d(out_channels)
             elif normtype == 'instancenorm':
                 block["{}_in{}".format(name, i)] = nn.InstanceNorm2d(
                     out_channels)
-            if dropout_p is not None and i > 0 and i < blocksize-1:
+            if dropout_p is not None and i > 0 and i < blocksize - 1:
                 block["{}_do{}".format(name, i)] = nn.Dropout(dropout_p)
             block["{}_relu{}".format(name, i)] = nn.ReLU()
         return nn.Sequential(block)
+
+
+class EnsembleGammaNet(nn.Module):
+    def __init__(self, ed, es):
+        super(EnsembleGammaNet, self).__init__()
+        self.ed = ed
+        self.es = es
+
+    def forward(self, x, frame_types):
+        ed_count, es_count = sum(frame_types).int().item(), sum(~frame_types).int().item()
+
+        if ed_count == 0:
+            return self.es(x)
+        elif es_count == 0:
+            return self.ed(x)
+
+        shape = x.shape
+        x_ed, x_es = self.__split(x, frame_types)
+        y_ed = self.ed(x_ed)
+        y_es = self.es(x_es)
+
+        return self.__merge(y_ed, y_es, frame_types, shape)
+
+    @staticmethod
+    def __split(x, frame_types):
+        return x[frame_types], x[~frame_types]
+
+    @staticmethod
+    def __merge(y_ed, y_es, frame_types, shape):
+        out = torch.empty(shape).cuda()
+        out[frame_types] = y_ed
+        out[~frame_types] = y_es
+        return out
+
+
+def build_gamma_net(config_data):
+    gammanet_config = GammaNet._get_default_config()
+    gammanet_config["input_timeseries"] = config_data['model']['timeseries']
+    gammanet_config["fgru_timesteps"] = config_data['model']['fgru_timesteps']
+    model = nn.Sequential(
+        GammaNet(gammanet_config),
+        nn.ReLU(),
+        nn.BatchNorm2d(24, eps=1e-3),
+        nn.Conv2d(24, 1, 5, padding=2),  # Change the expected number of output classes!
+    )
+    return model
+
+
+def get_model(config_data):
+    ensemble = config_data['model']['ensemble']
+    if not ensemble:
+        return build_gamma_net(config_data)
+    else:
+        ed_model = build_gamma_net(config_data)
+        es_model = build_gamma_net(config_data)
+        return EnsembleGammaNet(ed_model, es_model)

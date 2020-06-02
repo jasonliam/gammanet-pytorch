@@ -1,0 +1,28 @@
+{
+  "experiment_name": "ensemble_default",
+  "dataset": {
+    "training_fraction": 0.8,
+    "path": "../processed_data/regular",
+    "timeseries": false,
+    "transforms": [
+      "GaussianSmooth",
+      "CLAHE",
+      "MinMax",
+      "PadOrCenterCrop"
+    ]
+  },
+  "experiment": {
+    "num_epochs": 200,
+    "learning_rate": 1e-3,
+    "batch_size_train": 4,
+    "batch_size_val": 8,
+    "num_workers": 8
+  },
+  "model": {
+    "type": "GammaNet",
+    "criterion": "bce",
+    "timeseries": false,
+    "ensemble": true,
+    "fgru_timesteps": 4
+  }
+}

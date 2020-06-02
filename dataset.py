@@ -6,6 +6,8 @@ import pickle
 import imageio
 import gzip
 import random
+from test_helper import get_metadata, get_details_from_path
+
 
 # NOTE: don't transfer data to CUDA in dataset (if we need to, use memory pinning)
 
@@ -56,6 +58,8 @@ class SimpleDataset(torch.utils.data.Dataset):
         else:
             self.y_arr = None
 
+        self.metadata = get_metadata(self.x_arr)
+
     def __len__(self):
         return len(self.x_arr)
 
@@ -63,49 +67,50 @@ class SimpleDataset(torch.utils.data.Dataset):
         """
         Returns images and optionally labels at index
         """
-        
+
         if self.use_cache and index in self.cache_dict:
             return self.cache_dict[index]
 
         # get x sample
         x = self.x_arr[index]
-        if isinstance(x, str):  # load from file
-            x = x.strip()
-            if ".npy" in x:
-                x = self._load_numpy(x)
-            elif ".pkl" in x:  # pickle file, assume ndarray
-                x = self._load_pickle(x)
-            else:            # assume file in image format
-                x = np.array(imageio.imread(x))
+        x = self._get_data_from_path(x)
         if self.x_transform is not None:
             x = self.x_transform(x)
 
         # get y sample if requested
         if self.y_arr is not None:
             y = self.y_arr[index]
-            if isinstance(y, str):  # load from file
-                y = y.strip()
-                if ".npy" in y:
-                    y = self._load_numpy(y)
-                elif ".pkl" in y:  # pickle file, assume ndarray
-                    y = self._load_pickle(y)
-                else:            # assume file in image format
-                    y = np.array(imageio.imread(y))
+            y = self._get_data_from_path(y)
             if self.y_transform is not None:
                 y = self.y_transform(y)
             if self.use_cache:
-                self.cache_dict[index] = (x,y)
-            return x, y
+                self.cache_dict[index] = (x, y, self._is_ed(self.x_arr[index]))
+            return x, y, self._is_ed(self.x_arr[index])
         else:
             if self.use_cache:
-                self.cache_dict[index] = x
-            return x
+                self.cache_dict[index] = (x, self._is_ed(self.x_arr[index]))
+            return x, self.x_arr[index], self._is_ed(self.x_arr[index])  # Return X and its path
+
+    def _get_data_from_path(self, path):
+        if isinstance(path, str):  # load from file
+            x = path.strip()
+            if ".npy" in x:
+                x = self._load_numpy(x)
+            elif ".pkl" in x:  # pickle file, assume ndarray
+                x = self._load_pickle(x)
+            else:  # assume file in image format
+                x = np.array(imageio.imread(x))
+        return x
 
     def _shuffle(self):
         shuffled_idx = np.random.permutation(self.__len__())
         self.x_paths = self.x_paths[shuffled_idx]
         if self.y_arr is not None:
             self.y_arr = self.y_arr[shuffled_idx]
+
+    def _is_ed(self, path):
+        p, f, s = get_details_from_path(path)
+        return self.metadata[p][f]['type'] == 'ED'
 
     @staticmethod
     def _load_numpy(path):
@@ -119,4 +124,4 @@ class SimpleDataset(torch.utils.data.Dataset):
         f = gzip.open(path) if path.endswith(".gz") else open(path, 'rb')
         ret = pickle.load(f)
         assert isinstance(ret, np.ndarray), "Expected numpy.ndarray"
-        return ret            
+        return ret

@@ -38,8 +38,8 @@ class PadTo2Power(object):
         padding = np.zeros((len(x.shape), 2))
         for axis in self.axes:
             x_dim = x.shape[axis]
-            diff = 0 if x_dim % 2**self.k == 0 \
-                else ((x_dim // 2**self.k + 1) * 2**self.k) - x_dim
+            diff = 0 if x_dim % 2 ** self.k == 0 \
+                else ((x_dim // 2 ** self.k + 1) * 2 ** self.k) - x_dim
             if diff == 0:
                 continue
             padding[axis] = [diff // 2, diff // 2 + diff % 2]
@@ -50,11 +50,10 @@ class PadTo2Power(object):
 class PadToSquare(object):
 
     def __init__(self, axes=(0, 1), **kwargs):
-        self.axes = axes      # axes to make square
+        self.axes = axes  # axes to make square
         self.kwargs = kwargs  # pass to np.pad()
 
     def __call__(self, x):
-
         diff = x.shape[self.axes[0]] - x.shape[self.axes[1]]
         if diff == 0:
             return x
@@ -98,11 +97,11 @@ class CenterCrop(object):
         if h_diff == 0 and w_diff == 0:
             return x
         elif h_diff == 0:
-            return x[:, w_diff//2:-(w_diff//2+w_diff % 2)]
+            return x[:, w_diff // 2:-(w_diff // 2 + w_diff % 2)]
         elif w_diff == 0:
-            return x[h_diff//2:-(h_diff//2+h_diff % 2), :]
+            return x[h_diff // 2:-(h_diff // 2 + h_diff % 2), :]
         else:
-            return x[h_diff//2:-(h_diff//2+h_diff % 2), w_diff//2:-(w_diff//2+w_diff % 2)]
+            return x[h_diff // 2:-(h_diff // 2 + h_diff % 2), w_diff // 2:-(w_diff // 2 + w_diff % 2)]
 
 
 class PadOrCenterCrop(object):
@@ -173,7 +172,7 @@ class DownsampleShortAxis(MultiChannelTransform):
         if np.min(x.shape) < self.size:
             return x
         ds_ratio = np.min(x.shape) / self.size
-        new_shape = (int(x.shape[0]/ds_ratio), int(x.shape[1]/ds_ratio))
+        new_shape = (int(x.shape[0] / ds_ratio), int(x.shape[1] / ds_ratio))
         return skimage.transform.resize(x, new_shape, **self.kwargs)
 
 
@@ -198,9 +197,9 @@ class GaussianSmooth(MultiChannelTransform):
     def __init__(self, size, sigma):
         assert size % 2 == 1
         self.size = size
-        x, y = np.mgrid[-size//2 + 1:size//2 + 1, -size//2 + 1:size//2 + 1]
-        g = np.exp(-((x**2 + y**2)/(2.0*sigma**2)))
-        self.kernel = g/g.sum()[None]
+        x, y = np.mgrid[-size // 2 + 1:size // 2 + 1, -size // 2 + 1:size // 2 + 1]
+        g = np.exp(-((x ** 2 + y ** 2) / (2.0 * sigma ** 2)))
+        self.kernel = g / g.sum()[None]
 
     def _transform(self, x):
         assert isinstance(x, np.ndarray)

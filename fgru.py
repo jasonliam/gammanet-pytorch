@@ -5,6 +5,7 @@ import numpy as np
 from torch.nn import init
 from collections import OrderedDict
 
+
 # torch.manual_seed(42)
 
 
@@ -66,9 +67,9 @@ class fConvGRUCell(nn.Module):
         init.orthogonal_(self.w_gate_exc)
         if self.channel_sym:
             self.w_gate_inh.register_hook(lambda grad: (
-                grad + torch.transpose(grad, 1, 0))*0.5)
+                                                               grad + torch.transpose(grad, 1, 0)) * 0.5)
             self.w_gate_exc.register_hook(lambda grad: (
-                grad + torch.transpose(grad, 1, 0))*0.5)
+                                                               grad + torch.transpose(grad, 1, 0)) * 0.5)
 
         # scalars
         self.alpha = nn.Parameter(torch.empty((hidden_size, 1, 1)))
@@ -92,10 +93,10 @@ class fConvGRUCell(nn.Module):
         # norm layers
         if normtype == 'instancenorm':
             self.norm = nn.ModuleList(
-                [nn.InstanceNorm2d(hidden_size, eps=1e-03) for i in range(4*timesteps)])
+                [nn.InstanceNorm2d(hidden_size, eps=1e-03) for i in range(4 * timesteps)])
         elif normtype == 'batchnorm':
             self.norm = nn.ModuleList(
-                [nn.BatchNorm2d(hidden_size, eps=1e-03) for i in range(4*timesteps)])
+                [nn.BatchNorm2d(hidden_size, eps=1e-03) for i in range(4 * timesteps)])
             for norm in self.norm:
                 init.constant_(norm.weight, 0.1)
         else:
@@ -106,37 +107,37 @@ class fConvGRUCell(nn.Module):
 
         # NOTE: do NOT init h2; this is handled externally
 
-        #import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         i = timestep
         if self.normtype is not None:
             if "attention" in dir(self):
                 g1_t = self.attention(prev_state2)
             else:
                 g1_t = torch.sigmoid(
-                    self.norm[i*4+0](self.u1_gate(prev_state2)))
-            c1_t = self.norm[i*4+1](F.conv2d(prev_state2 *
-                                             g1_t, self.w_gate_inh, padding=self.padding))
+                    self.norm[i * 4 + 0](self.u1_gate(prev_state2)))
+            c1_t = self.norm[i * 4 + 1](F.conv2d(prev_state2 *
+                                                 g1_t, self.w_gate_inh, padding=self.padding))
             next_state1 = F.relu(
-                input_ - F.relu(c1_t*(self.alpha*prev_state2 + self.mu)))
-            g2_t = torch.sigmoid(self.norm[i*4+2](self.u2_gate(next_state1)))
-            c2_t = self.norm[i*4+3](F.conv2d(next_state1,
-                                             self.w_gate_exc, padding=self.padding))
-            h2_t = F.relu(self.kappa*next_state1 + self.gamma *
-                          c2_t + self.omega*next_state1*c2_t)
-            prev_state2 = (1 - g2_t)*prev_state2 + g2_t*h2_t
+                input_ - F.relu(c1_t * (self.alpha * prev_state2 + self.mu)))
+            g2_t = torch.sigmoid(self.norm[i * 4 + 2](self.u2_gate(next_state1)))
+            c2_t = self.norm[i * 4 + 3](F.conv2d(next_state1,
+                                                 self.w_gate_exc, padding=self.padding))
+            h2_t = F.relu(self.kappa * next_state1 + self.gamma *
+                          c2_t + self.omega * next_state1 * c2_t)
+            prev_state2 = (1 - g2_t) * prev_state2 + g2_t * h2_t
 
         else:
             g1_t = torch.sigmoid(self.u1_gate(prev_state2))
             c1_t = F.conv2d(prev_state2 * g1_t,
                             self.w_gate_inh, padding=self.padding)
             next_state1 = F.tanh(
-                input_ - c1_t*(self.alpha*prev_state2 + self.mu))
-            g2_t = torch.sigmoid(self.norm[i*4+2](self.u2_gate(next_state1)))
+                input_ - c1_t * (self.alpha * prev_state2 + self.mu))
+            g2_t = torch.sigmoid(self.norm[i * 4 + 2](self.u2_gate(next_state1)))
             c2_t = F.conv2d(next_state1, self.w_gate_exc, padding=self.padding)
-            h2_t = torch.tanh(self.kappa*(next_state1 + self.gamma *
-                                          c2_t) + (self.omega*(next_state1*(self.gamma*c2_t))))
+            h2_t = torch.tanh(self.kappa * (next_state1 + self.gamma *
+                                            c2_t) + (self.omega * (next_state1 * (self.gamma * c2_t))))
             prev_state2 = self.eta[timestep] * \
-                ((1 - g2_t)*prev_state2 + g2_t*h2_t)
+                          ((1 - g2_t) * prev_state2 + g2_t * h2_t)
 
         return prev_state2
 
@@ -166,15 +167,15 @@ class SE_Attention(nn.Module):
         self.module_list = []
 
         for i in range(layers):
-            if i == layers-1:
+            if i == layers - 1:
                 next_feat = output_size
-            elif i < layers//2:
+            elif i < layers // 2:
                 next_feat = curr_feat // 2
             else:
                 next_feat = curr_feat * 2
 
             conv = nn.Conv2d(curr_feat, next_feat,
-                             filter_size, padding=filter_size//2)
+                             filter_size, padding=filter_size // 2)
             init.orthogonal_(conv.weight)  # xavier_normal_
             init.constant_(conv.bias, 0)
             self.module_list.append(conv)
@@ -226,13 +227,13 @@ class SA_Attention(nn.Module):
         curr_feat = input_size
         self.module_list = []
         for i in range(layers):
-            if i == layers-1:
+            if i == layers - 1:
                 next_feat = output_size
             else:
                 next_feat = curr_feat // 2
 
             conv = nn.Conv2d(curr_feat, next_feat,
-                             filter_size, padding=filter_size//2)
+                             filter_size, padding=filter_size // 2)
             init.orthogonal_(conv.weight)  # xavier_normal_
             init.constant_(conv.bias, 0)
             self.module_list.append(conv)
@@ -276,15 +277,14 @@ class GALA_Attention(nn.Module):
                  normalization_params={'affine': True},
                  non_linearity='ReLU',
                  norm_pre_nl=False):
-
         super().__init__()
 
-        self.se = SE_Attention(input_size, output_size, 1,                    layers,
+        self.se = SE_Attention(input_size, output_size, 1, layers,
                                normalization=normalization,  # 'BatchNorm2D'
                                normalization_params=normalization_params,
                                non_linearity=non_linearity,
                                norm_pre_nl=norm_pre_nl)
-        self.sa = SA_Attention(input_size, 1,           saliency_filter_size, layers,
+        self.sa = SA_Attention(input_size, 1, saliency_filter_size, layers,
                                normalization=normalization,  # 'BatchNorm2D'
                                normalization_params=normalization_params,
                                non_linearity=non_linearity,
