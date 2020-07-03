@@ -92,7 +92,7 @@ class SimpleDataset(torch.utils.data.Dataset):
             return self.cache_dict[index]
 
         x = self.x_arr[index]
-        if isinstance(x, str) and os.path.exists(x):  # load from file
+        if isinstance(x, str) and os.path.exists(x.strip()):  # load file
             x = x.strip()
             if ".npy" in x:
                 x = self._load_numpy(x)
@@ -107,7 +107,7 @@ class SimpleDataset(torch.utils.data.Dataset):
 
         if self.y_arr is not None:
             y = self.y_arr[index]
-            if isinstance(y, str) and os.path.exists(y):  # load from file
+            if isinstance(y, str) and os.path.exists(y.strip()):  # load file
                 y = y.strip()
                 if ".npy" in y:
                     y = self._load_numpy(y)
@@ -122,6 +122,7 @@ class SimpleDataset(torch.utils.data.Dataset):
             if self.use_cache:
                 self.cache_dict[index] = (x, y)
             return x, y
+        
         else:
             if self.use_cache:
                 self.cache_dict[index] = x
